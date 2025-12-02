@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Container,
   Paper,
@@ -12,7 +12,10 @@ import {
   CardContent,
   Alert,
   Slider,
+  Chip,
 } from "@mui/material";
+import weaponsData from "./weapon.json";
+import weaponModsData from "./weaponMods.json";
 import { SliderInput } from "./Slider";
 
 // Constants
@@ -30,7 +33,7 @@ const BASE_STATS = {
   awd: 10,
   hsd: 20,
   chc: 10,
-  chd: 45, // 25 base + 20 from watch
+  chd: 45,
   reloadSpeed: 10,
 };
 
@@ -58,6 +61,8 @@ const AVAILABLE_ATTRIBUTES = [
 ];
 
 function App() {
+  const [selectedWeaponName, setSelectedWeaponName] = useState("");
+
   const [weapon, setWeapon] = useState({
     category: "LMG",
     baseDamage: 49480,
@@ -72,10 +77,97 @@ function App() {
     attribute: { type: "CHC", value: 9.5 },
   });
 
+  const [weaponMods, setWeaponMods] = useState({
+    magazine: null,
+    muzzle: null,
+    optic: null,
+    underBarrel: null,
+  });
+
   const [combatScenario, setCombatScenario] = useState({
     targetType: "armor",
     targetInCover: false,
   });
+
+  // Get current weapon data from JSON
+  const currentWeaponData = useMemo(() => {
+    if (!selectedWeaponName) return null;
+    return weaponsData.data.find((w) => w.Name === selectedWeaponName);
+  }, [selectedWeaponName]);
+
+  // Filter available mods based on selected weapon
+  const availableMods = useMemo(() => {
+    if (!currentWeaponData) {
+      return {
+        magazine: [],
+        muzzle: [],
+        optic: [],
+        underBarrel: [],
+      };
+    }
+
+    const mods = weaponModsData.data;
+
+    return {
+      magazine: mods.filter(
+        (mod) =>
+          mod.Slot === "Magazine" &&
+          (mod.Type === currentWeaponData.Magazine ||
+            mod.Type === currentWeaponData.Name)
+      ),
+      muzzle: mods.filter(
+        (mod) =>
+          mod.Slot === "Muzzle" &&
+          (mod.Type === currentWeaponData.Muzzle ||
+            mod.Type === currentWeaponData.Name)
+      ),
+      optic: mods.filter(
+        (mod) =>
+          mod.Slot === "Optic" &&
+          (mod.Type === currentWeaponData.Optics ||
+            currentWeaponData.Optics?.includes(mod.Type) ||
+            mod.Type === currentWeaponData.Name)
+      ),
+      underBarrel: mods.filter(
+        (mod) =>
+          mod.Slot === "Under Barrel" &&
+          (mod.Type === currentWeaponData["Under Barrel"] ||
+            currentWeaponData["Under Barrel"]?.includes(mod.Type) ||
+            mod.Type === currentWeaponData.Name)
+      ),
+    };
+  }, [currentWeaponData]);
+
+  const handleWeaponSelect = (weaponName) => {
+    const weaponData = weaponsData.data.find((w) => w.Name === weaponName);
+    if (!weaponData) return;
+
+    setSelectedWeaponName(weaponName);
+
+    const coreAttr2 = CORE_ATTRIBUTE_2_BY_CATEGORY[weaponData["Weapon Type"]];
+
+    setWeapon({
+      category: weaponData["Weapon Type"],
+      baseDamage: parseFloat(weaponData["Base Damage"]) || 0,
+      rpm: parseInt(weaponData.RPM) || 0,
+      magSize: parseInt(weaponData["Mag Size"]) || 0,
+      baseHSD: parseInt(weaponData.HSD) || 0,
+      optimalRange: parseInt(weaponData["Optimal Range"]) || 0,
+      reloadTime: parseFloat(weaponData["Reload Speed (ms)"]) / 1000 || 0,
+      expertise: 0,
+      coreAttribute1: parseFloat(weaponData["Core 1 Max"]) || 15,
+      coreAttribute2: parseFloat(weaponData["Core 2 Max"]) || coreAttr2.max,
+      attribute: { type: "CHC", value: 9.5 },
+    });
+
+    // Reset mods when weapon changes
+    setWeaponMods({
+      magazine: null,
+      muzzle: null,
+      optic: null,
+      underBarrel: null,
+    });
+  };
 
   const handleWeaponChange = (field, value) => {
     if (field === "category") {
@@ -102,17 +194,114 @@ function App() {
     }
   };
 
+  const handleModChange = (slot, modIndex) => {
+    const modList = availableMods[slot];
+    const selectedMod = modIndex === "" ? null : modList[parseInt(modIndex)];
+
+    setWeaponMods((prev) => ({
+      ...prev,
+      [slot]: selectedMod,
+    }));
+  };
+
+  // Calculate total mod bonuses
+  const modBonuses = useMemo(() => {
+    const bonuses = {
+      chd: 0,
+      hsd: 0,
+      chc: 0,
+      reloadSpeed: 0,
+      optimalRange: 0,
+      magSize: 0,
+      rateOfFire: 0,
+      stability: 0,
+      accuracy: 0,
+      weaponHandling: 0,
+      extraRounds: 0,
+    };
+
+    Object.values(weaponMods).forEach((mod) => {
+      if (!mod) return;
+
+      const posValue = parseFloat(mod.valPos) || 0;
+      const negValue = parseFloat(mod.valNeg) || 0;
+
+      // Positive bonus
+      if (mod.pos) {
+        switch (mod.pos) {
+          case "Critical Hit Damage":
+            bonuses.chd += posValue;
+            break;
+          case "Headshot Damage":
+            bonuses.hsd += posValue;
+            break;
+          case "Critical Hit Chance":
+            bonuses.chc += posValue;
+            break;
+          case "Reload Speed":
+            bonuses.reloadSpeed += posValue;
+            break;
+          case "Optimal Range":
+            bonuses.optimalRange += posValue;
+            break;
+          case "Mag Size":
+            bonuses.magSize += posValue;
+            break;
+          case "Rate of Fire":
+            bonuses.rateOfFire += posValue;
+            break;
+          case "Stability":
+            bonuses.stability += posValue;
+            break;
+          case "Accuracy":
+            bonuses.accuracy += posValue;
+            break;
+          case "Weapon Handling":
+            bonuses.weaponHandling += posValue;
+            bonuses.reloadSpeed += posValue; // Convert to reload speed
+            break;
+          case "Extra Rounds":
+            bonuses.extraRounds += posValue;
+            break;
+        }
+      }
+
+      // Negative bonus
+      if (mod.neg) {
+        switch (mod.neg) {
+          case "Critical Hit Damage":
+            bonuses.chd += negValue; // negValue is already negative
+            break;
+          case "Headshot Damage":
+            bonuses.hsd += negValue;
+            break;
+          case "Critical Hit Chance":
+            bonuses.chc += negValue;
+            break;
+          case "Reload Speed":
+            bonuses.reloadSpeed += negValue;
+            break;
+          case "Optimal Range":
+            bonuses.optimalRange += negValue;
+            break;
+        }
+      }
+    });
+
+    return bonuses;
+  }, [weaponMods]);
+
   const calculateBulletDamage = (hitType = "body") => {
     const coreAttr2Type = CORE_ATTRIBUTE_2_BY_CATEGORY[weapon.category].type;
 
     let awd = BASE_STATS.awd + weapon.expertise;
     let swd = weapon.coreAttribute1;
 
-    let chd = BASE_STATS.chd;
+    let chd = BASE_STATS.chd + modBonuses.chd;
     if (coreAttr2Type === "CHD") chd += weapon.coreAttribute2;
     if (weapon.attribute.type === "CHD") chd += weapon.attribute.value;
 
-    let hsd = BASE_STATS.hsd + weapon.baseHSD;
+    let hsd = BASE_STATS.hsd + weapon.baseHSD + modBonuses.hsd;
     if (coreAttr2Type === "HSD") hsd += weapon.coreAttribute2;
     if (weapon.attribute.type === "HSD") hsd += weapon.attribute.value;
 
@@ -148,7 +337,7 @@ function App() {
   };
 
   const calculateDPS = () => {
-    let chc = BASE_STATS.chc;
+    let chc = BASE_STATS.chc + modBonuses.chc;
     if (CORE_ATTRIBUTE_2_BY_CATEGORY[weapon.category].type === "CHC") {
       chc += weapon.coreAttribute2;
     }
@@ -161,14 +350,17 @@ function App() {
     if (weapon.attribute.type === "Rate of Fire") {
       rpm *= 1 + weapon.attribute.value / 100;
     }
+    rpm *= 1 + modBonuses.rateOfFire / 100;
 
     let magSize = weapon.magSize;
     if (weapon.attribute.type === "Mag Size") {
       magSize *= 1 + weapon.attribute.value / 100;
     }
+    magSize *= 1 + modBonuses.magSize / 100;
+    magSize += modBonuses.extraRounds;
     magSize = Math.round(magSize);
 
-    let reloadSpeed = BASE_STATS.reloadSpeed;
+    let reloadSpeed = BASE_STATS.reloadSpeed + modBonuses.reloadSpeed;
     if (weapon.attribute.type === "Reload Speed") {
       reloadSpeed += weapon.attribute.value;
     }
@@ -207,13 +399,77 @@ function App() {
     (attr) => attr.type !== coreAttr2.type
   );
 
+  // Get unique weapon names sorted alphabetically
+  const weaponNames = useMemo(() => {
+    return [...new Set(weaponsData.data.map((w) => w.Name))].sort();
+  }, []);
+
+  const renderModBonus = (mod) => {
+    if (!mod) return null;
+
+    const bonuses = [];
+
+    if (mod.pos && mod.valPos) {
+      bonuses.push(
+        <Chip
+          key="pos"
+          label={`+${mod.valPos}% ${mod.pos}`}
+          color="success"
+          size="small"
+          sx={{ mr: 0.5, mb: 0.5 }}
+        />
+      );
+    }
+
+    if (mod.neg && mod.valNeg) {
+      bonuses.push(
+        <Chip
+          key="neg"
+          label={`${mod.valNeg}% ${mod.neg}`}
+          color="error"
+          size="small"
+          sx={{ mr: 0.5, mb: 0.5 }}
+        />
+      );
+    }
+
+    return bonuses.length > 0 ? <Box sx={{ mt: 1 }}>{bonuses}</Box> : null;
+  };
+
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
+    <Container maxWidth="xl" sx={{ py: 4 }}>
       <Typography variant="h3" gutterBottom align="center" sx={{ mb: 4 }}>
         DPS Calculator
       </Typography>
 
       <Grid container spacing={3}>
+        {/* Weapon Selection */}
+        <Grid item xs={12}>
+          <Paper sx={{ p: 3 }}>
+            <Typography variant="h5" gutterBottom>
+              Select Weapon
+            </Typography>
+            <Divider sx={{ mb: 2 }} />
+            <TextField
+              select
+              label="Weapon"
+              value={selectedWeaponName}
+              onChange={(e) => handleWeaponSelect(e.target.value)}
+              fullWidth
+            >
+              <MenuItem value="">
+                <em>Select a weapon...</em>
+              </MenuItem>
+              {weaponNames.map((name) => (
+                <MenuItem key={name} value={name}>
+                  {name}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Paper>
+        </Grid>
+
+        {/* Weapon Stats */}
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 3 }}>
             <Typography variant="h5" gutterBottom>
@@ -253,7 +509,6 @@ function App() {
                 onChange={(e) => handleWeaponChange("rpm", e.target.value)}
                 fullWidth
               />
-
               {/* MagSize */}
               <SliderInput
                 label="Magazine Size"
@@ -348,7 +603,134 @@ function App() {
           </Paper>
         </Grid>
 
+        {/* Weapon Mods & Combat Scenario & Results */}
         <Grid item xs={12} md={6}>
+          {/* Weapon Mods */}
+          <Paper sx={{ p: 3, mb: 3 }}>
+            <Typography variant="h5" gutterBottom>
+              Weapon Mods
+            </Typography>
+            <Divider sx={{ mb: 2 }} />
+
+            {!selectedWeaponName ? (
+              <Alert severity="info">
+                Please select a weapon first to see available mods
+              </Alert>
+            ) : (
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                {/* Magazine */}
+                <Box>
+                  <TextField
+                    select
+                    label={`Magazine (${availableMods.magazine.length} available)`}
+                    value={
+                      weaponMods.magazine
+                        ? availableMods.magazine.indexOf(weaponMods.magazine)
+                        : ""
+                    }
+                    onChange={(e) =>
+                      handleModChange("magazine", e.target.value)
+                    }
+                    fullWidth
+                    disabled={availableMods.magazine.length === 0}
+                  >
+                    <MenuItem value="">
+                      <em>None</em>
+                    </MenuItem>
+                    {availableMods.magazine.map((mod, idx) => (
+                      <MenuItem key={idx} value={idx}>
+                        {mod.Name}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                  {renderModBonus(weaponMods.magazine)}
+                </Box>
+
+                {/* Muzzle */}
+                <Box>
+                  <TextField
+                    select
+                    label={`Muzzle (${availableMods.muzzle.length} available)`}
+                    value={
+                      weaponMods.muzzle
+                        ? availableMods.muzzle.indexOf(weaponMods.muzzle)
+                        : ""
+                    }
+                    onChange={(e) => handleModChange("muzzle", e.target.value)}
+                    fullWidth
+                    disabled={availableMods.muzzle.length === 0}
+                  >
+                    <MenuItem value="">
+                      <em>None</em>
+                    </MenuItem>
+                    {availableMods.muzzle.map((mod, idx) => (
+                      <MenuItem key={idx} value={idx}>
+                        {mod.Name}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                  {renderModBonus(weaponMods.muzzle)}
+                </Box>
+                {/* Optic */}
+                <Box>
+                  <TextField
+                    select
+                    label={`Optic (${availableMods.optic.length} available)`}
+                    value={
+                      weaponMods.optic
+                        ? availableMods.optic.indexOf(weaponMods.optic)
+                        : ""
+                    }
+                    onChange={(e) => handleModChange("optic", e.target.value)}
+                    fullWidth
+                    disabled={availableMods.optic.length === 0}
+                  >
+                    <MenuItem value="">
+                      <em>None</em>
+                    </MenuItem>
+                    {availableMods.optic.map((mod, idx) => (
+                      <MenuItem key={idx} value={idx}>
+                        {mod.Name}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                  {renderModBonus(weaponMods.optic)}
+                </Box>
+
+                {/* Under Barrel */}
+                <Box>
+                  <TextField
+                    select
+                    label={`Under Barrel (${availableMods.underBarrel.length} available)`}
+                    value={
+                      weaponMods.underBarrel
+                        ? availableMods.underBarrel.indexOf(
+                            weaponMods.underBarrel
+                          )
+                        : ""
+                    }
+                    onChange={(e) =>
+                      handleModChange("underBarrel", e.target.value)
+                    }
+                    fullWidth
+                    disabled={availableMods.underBarrel.length === 0}
+                  >
+                    <MenuItem value="">
+                      <em>None</em>
+                    </MenuItem>
+                    {availableMods.underBarrel.map((mod, idx) => (
+                      <MenuItem key={idx} value={idx}>
+                        {mod.Name}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                  {renderModBonus(weaponMods.underBarrel)}
+                </Box>
+              </Box>
+            )}
+          </Paper>
+
+          {/* Combat Scenario */}
           <Paper sx={{ p: 3, mb: 3 }}>
             <Typography variant="h5" gutterBottom>
               Combat Scenario
@@ -375,7 +757,7 @@ function App() {
               <TextField
                 select
                 label="Target in Cover"
-                value={combatScenario.targetInCover}
+                value={combatScenario.targetInCover.toString()}
                 onChange={(e) =>
                   setCombatScenario((prev) => ({
                     ...prev,
@@ -386,12 +768,11 @@ function App() {
               >
                 <MenuItem value="false">No (Out of Cover)</MenuItem>
                 <MenuItem value="true">Yes (In Cover)</MenuItem>
-                {/* <MenuItem value={false}>No (Out of Cover)</MenuItem>
-                <MenuItem value={true}>Yes (In Cover)</MenuItem> */}
               </TextField>
             </Box>
           </Paper>
 
+          {/* DPS Results */}
           <Card sx={{ bgcolor: "primary.main", color: "white" }}>
             <CardContent>
               <Typography variant="h4" gutterBottom>
@@ -490,12 +871,12 @@ function App() {
 
           <Alert severity="info" sx={{ mt: 2 }}>
             <strong>Note:</strong> DPS calculation uses average damage based on
-            crit chance (capped at 60%).
+            crit chance (capped at 60%). Weapon mods bonuses are applied to
+            final stats.
           </Alert>
         </Grid>
       </Grid>
     </Container>
   );
 }
-
 export default App;

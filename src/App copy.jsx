@@ -1,675 +1,501 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   Container,
   Paper,
   Typography,
-  TextField,
-  Grid,
   Box,
+  Grid,
+  TextField,
+  MenuItem,
+  Divider,
   Card,
   CardContent,
-  ToggleButton,
-  ToggleButtonGroup,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
+  Alert,
   Slider,
-  Divider,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
-} from '@mui/material';
-import CalculateIcon from '@mui/icons-material/Calculate';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+} from "@mui/material";
+import { SliderInput } from "./Slider";
 
-export default function App() {
-  // Weapon selection
-  const [weaponType, setWeaponType] = useState('rifles');
-  const [weaponCoreAttribute, setWeaponCoreAttribute] = useState(15);
-  const [weaponExpertise, setWeaponExpertise] = useState(0);
-  
-  // Specialization
-  const [specTier, setSpecTier] = useState(3);
-  const [weaponAffectedBySpec, setWeaponAffectedBySpec] = useState(true);
-  
-  // Watch (AWD)
-  const [watchTier, setWatchTier] = useState(50);
-  
-  // Seasonal bonus
-  const [seasonalAWD, setSeasonalAWD] = useState(0);
-  
-  // Gear pieces (6 max)
-  const [gear1AWD, setGear1AWD] = useState(0);
-  const [gear2AWD, setGear2AWD] = useState(0);
-  const [gear3AWD, setGear3AWD] = useState(0);
-  const [gear4AWD, setGear4AWD] = useState(0);
-  const [gear5AWD, setGear5AWD] = useState(0);
-  const [gear6AWD, setGear6AWD] = useState(0);
-  
-  // Striker Gear Set
-  const [strikerStacks, setStrikerStacks] = useState(0);
-  const [hasStrikerChest, setHasStrikerChest] = useState(false);
-  const [hasStrikerBackpack, setHasStrikerBackpack] = useState(false);
-  
-  // Other stats
-  const [base, setBase] = useState(100);
-  const [twd, setTwd] = useState(0);
-  const [chd, setChd] = useState(0);
-  const [hsd, setHsd] = useState(0);
-  const [dta, setDta] = useState(0);
-  const [dth, setDth] = useState(0);
-  const [dttooc, setDttooc] = useState(0);
-  const [other, setOther] = useState(0);
-  const [damageType, setDamageType] = useState('dta');
+// Constants
+const WEAPON_CATEGORIES = [
+  "Assault Rifle",
+  "LMG",
+  "Marksman Rifle",
+  "Pistol",
+  "Rifle",
+  "SMG",
+  "Shotgun",
+];
 
-  const weaponTypes = [
-    'Rifles',
-    'Assault Rifles',
-    'Marksman Rifles',
-    'Shotguns',
-    'SMGs',
-    'LMGs',
-    'Pistols'
-  ];
+const BASE_STATS = {
+  awd: 10,
+  hsd: 20,
+  chc: 10,
+  chd: 45, // 25 base + 20 from watch
+  reloadSpeed: 10,
+};
 
-  // Calculate values
-  const totalGearAWD = gear1AWD + gear2AWD + gear3AWD + gear4AWD + gear5AWD + gear6AWD;
-  const awd = (watchTier * 0.2) + seasonalAWD + totalGearAWD;
-  const swd = weaponCoreAttribute + weaponExpertise + (weaponAffectedBySpec ? specTier * 5 : 0);
-  
-  // Striker calculation
-  const strikerStackValue = hasStrikerBackpack ? 0.9 : 0.65;
-  const maxStrikerStacks = hasStrikerChest ? 200 : 100;
-  const strikerTWD = strikerStacks * strikerStackValue;
-  const totalTWD = twd + strikerTWD;
+const CORE_ATTRIBUTE_2_BY_CATEGORY = {
+  Rifle: { type: "CHD", max: 17 },
+  "Assault Rifle": { type: "DTH", max: 21 },
+  "Marksman Rifle": { type: "HSD", max: 111 },
+  Shotgun: { type: "DTA", max: 12 },
+  SMG: { type: "CHC", max: 21 },
+  LMG: { type: "DTTOOC", max: 12 },
+  Pistol: { type: "None", max: 0 },
+};
 
-  const calculateResult = () => {
-    const factor1 = 1 + (awd + swd) / 100;
-    const factor2 = 1 + totalTWD / 100;
-    const factor3 = 1 + (chd + hsd) / 100;
-    const factor4 = 1 + (damageType === 'dta' ? dta : dth) / 100;
-    const factor5 = 1 + dttooc / 100;
-    const factor6 = 1 + other / 100;
-    
-    return base * factor1 * factor2 * factor3 * factor4 * factor5 * factor6;
+const AVAILABLE_ATTRIBUTES = [
+  { type: "DTA", max: 6 },
+  { type: "CHC", max: 9.5 },
+  { type: "DTH", max: 9.5 },
+  { type: "DTTOOC", max: 10 },
+  { type: "HSD", max: 10 },
+  { type: "Reload Speed", max: 12 },
+  { type: "Optimal Range", max: 24 },
+  { type: "Mag Size", max: 12.5 },
+  { type: "Rate of Fire", max: 5 },
+  { type: "CHD", max: 10 },
+];
+
+function App() {
+  const [weapon, setWeapon] = useState({
+    category: "LMG",
+    baseDamage: 49480,
+    rpm: 750,
+    magSize: 200,
+    baseHSD: 65,
+    optimalRange: 35,
+    reloadTime: 3.63,
+    expertise: 0,
+    coreAttribute1: 15,
+    coreAttribute2: 12,
+    attribute: { type: "CHC", value: 9.5 },
+  });
+
+  const [combatScenario, setCombatScenario] = useState({
+    targetType: "armor",
+    targetInCover: false,
+  });
+
+  const handleWeaponChange = (field, value) => {
+    if (field === "category") {
+      const coreAttr2 = CORE_ATTRIBUTE_2_BY_CATEGORY[value];
+      setWeapon((prev) => ({
+        ...prev,
+        category: value,
+        coreAttribute2: coreAttr2.max,
+        attribute: { type: "CHC", value: 9.5 },
+      }));
+    } else if (field === "attributeType") {
+      const attr = AVAILABLE_ATTRIBUTES.find((a) => a.type === value);
+      setWeapon((prev) => ({
+        ...prev,
+        attribute: { type: value, value: attr.max },
+      }));
+    } else if (field === "attributeValue") {
+      setWeapon((prev) => ({
+        ...prev,
+        attribute: { ...prev.attribute, value: parseFloat(value) || 0 },
+      }));
+    } else {
+      setWeapon((prev) => ({ ...prev, [field]: parseFloat(value) || 0 }));
+    }
   };
 
-  const result = calculateResult();
+  const calculateBulletDamage = (hitType = "body") => {
+    const coreAttr2Type = CORE_ATTRIBUTE_2_BY_CATEGORY[weapon.category].type;
 
-  const gearSetters = [setGear1AWD, setGear2AWD, setGear3AWD, setGear4AWD, setGear5AWD, setGear6AWD];
-  const gearValues = [gear1AWD, gear2AWD, gear3AWD, gear4AWD, gear5AWD, gear6AWD];
+    let awd = BASE_STATS.awd + weapon.expertise;
+    let swd = weapon.coreAttribute1;
+
+    let chd = BASE_STATS.chd;
+    if (coreAttr2Type === "CHD") chd += weapon.coreAttribute2;
+    if (weapon.attribute.type === "CHD") chd += weapon.attribute.value;
+
+    let hsd = BASE_STATS.hsd + weapon.baseHSD;
+    if (coreAttr2Type === "HSD") hsd += weapon.coreAttribute2;
+    if (weapon.attribute.type === "HSD") hsd += weapon.attribute.value;
+
+    let dtaOrDth = 0;
+    if (combatScenario.targetType === "armor") {
+      if (coreAttr2Type === "DTA") dtaOrDth += weapon.coreAttribute2;
+      if (weapon.attribute.type === "DTA") dtaOrDth += weapon.attribute.value;
+    } else {
+      if (coreAttr2Type === "DTH") dtaOrDth += weapon.coreAttribute2;
+      if (weapon.attribute.type === "DTH") dtaOrDth += weapon.attribute.value;
+    }
+
+    let dttooc = 0;
+    if (!combatScenario.targetInCover) {
+      if (coreAttr2Type === "DTTOOC") dttooc += weapon.coreAttribute2;
+      if (weapon.attribute.type === "DTTOOC") dttooc += weapon.attribute.value;
+    }
+
+    let damage = weapon.baseDamage * (1 + (awd + swd) / 100);
+
+    if (hitType === "bodyCrit") {
+      damage *= 1 + chd / 100;
+    } else if (hitType === "headshot") {
+      damage *= 1 + hsd / 100;
+    } else if (hitType === "headshotCrit") {
+      damage *= 1 + (chd + hsd) / 100;
+    }
+
+    damage *= 1 + dtaOrDth / 100;
+    damage *= 1 + dttooc / 100;
+
+    return Math.round(damage);
+  };
+
+  const calculateDPS = () => {
+    let chc = BASE_STATS.chc;
+    if (CORE_ATTRIBUTE_2_BY_CATEGORY[weapon.category].type === "CHC") {
+      chc += weapon.coreAttribute2;
+    }
+    if (weapon.attribute.type === "CHC") {
+      chc += weapon.attribute.value;
+    }
+    chc = Math.min(chc, 60);
+
+    let rpm = weapon.rpm;
+    if (weapon.attribute.type === "Rate of Fire") {
+      rpm *= 1 + weapon.attribute.value / 100;
+    }
+
+    let magSize = weapon.magSize;
+    if (weapon.attribute.type === "Mag Size") {
+      magSize *= 1 + weapon.attribute.value / 100;
+    }
+    magSize = Math.round(magSize);
+
+    let reloadSpeed = BASE_STATS.reloadSpeed;
+    if (weapon.attribute.type === "Reload Speed") {
+      reloadSpeed += weapon.attribute.value;
+    }
+
+    const effectiveReloadTime = weapon.reloadTime * (1 - reloadSpeed / 100);
+    const timePerMag = (magSize / rpm) * 60 + effectiveReloadTime;
+    const effectiveRPM = (magSize / timePerMag) * 60;
+
+    const bodyDamage = calculateBulletDamage("body");
+    const bodyCritDamage = calculateBulletDamage("bodyCrit");
+    const headshotDamage = calculateBulletDamage("headshot");
+    const headshotCritDamage = calculateBulletDamage("headshotCrit");
+
+    const avgDamage =
+      bodyDamage * (1 - chc / 100) + bodyCritDamage * (chc / 100);
+    const dps = (avgDamage * effectiveRPM) / 60;
+
+    return {
+      dps: Math.round(dps),
+      bodyDamage,
+      bodyCritDamage,
+      headshotDamage,
+      headshotCritDamage,
+      avgDamage: Math.round(avgDamage),
+      effectiveRPM: Math.round(effectiveRPM),
+      effectiveMagSize: magSize,
+      effectiveReloadTime: effectiveReloadTime.toFixed(2),
+      critChance: chc.toFixed(1),
+    };
+  };
+
+  const stats = calculateDPS();
+  const coreAttr2 = CORE_ATTRIBUTE_2_BY_CATEGORY[weapon.category];
+
+  const availableAttributes = AVAILABLE_ATTRIBUTES.filter(
+    (attr) => attr.type !== coreAttr2.type
+  );
 
   return (
-    <Box sx={{ 
-      minHeight: '100vh', 
-      background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
-      py: 4
-    }}>
-      <Container maxWidth="lg">
-        <Paper elevation={3} sx={{ p: 4, borderRadius: 3 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 4, gap: 2 }}>
-            <CalculateIcon sx={{ fontSize: 40, color: '#e94560' }} />
-            <Typography variant="h3" component="h1" fontWeight="bold">
-              The Division 2 - Calculateur de Dégâts
+    <Container maxWidth="lg" sx={{ py: 4 }}>
+      <Typography variant="h3" gutterBottom align="center" sx={{ mb: 4 }}>
+        DPS Calculator
+      </Typography>
+
+      <Grid container spacing={3}>
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 3 }}>
+            <Typography variant="h5" gutterBottom>
+              Weapon Stats
             </Typography>
-          </Box>
+            <Divider sx={{ mb: 2 }} />
 
-          {/* Weapon Section */}
-          <Accordion defaultExpanded sx={{ mb: 2 }}>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography variant="h6" fontWeight="bold">🔫 Arme</Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <Grid container spacing={3}>
-                <Grid item xs={12} md={6}>
-                  <TextField
-                    fullWidth
-                    label="BASE Damage"
-                    type="number"
-                    value={base}
-                    onChange={(e) => setBase(parseFloat(e.target.value) || 0)}
-                    variant="outlined"
-                  />
-                </Grid>
-
-                <Grid item xs={12} md={6}>
-                  <FormControl fullWidth>
-                    <InputLabel>Type d'arme</InputLabel>
-                    <Select
-                      value={weaponType}
-                      label="Type d'arme"
-                      onChange={(e) => setWeaponType(e.target.value)}
-                    >
-                      {weaponTypes.map((type) => (
-                        <MenuItem key={type} value={type.toLowerCase().replace(' ', '-')}>
-                          {type}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Grid>
-
-                <Grid item xs={12}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
-                    <Typography>
-                      Core Attribute (Weapon Damage): {weaponCoreAttribute}%
-                    </Typography>
-                    <TextField
-                      size="small"
-                      type="number"
-                      value={weaponCoreAttribute}
-                      onChange={(e) => {
-                        const value = parseFloat(e.target.value);
-                        if (!isNaN(value) && value >= 1 && value <= 15) {
-                          setWeaponCoreAttribute(value);
-                        } else if (e.target.value === '') {
-                          setWeaponCoreAttribute(1);
-                        }
-                      }}
-                      inputProps={{ 
-                        min: 1, 
-                        max: 15, 
-                        step: 0.1,
-                        style: { width: '80px' }
-                      }}
-                      sx={{ width: '120px' }}
-                    />
-                  </Box>
-                  <Slider
-                    value={weaponCoreAttribute}
-                    onChange={(e, value) => setWeaponCoreAttribute(value)}
-                    min={1}
-                    max={15}
-                    step={0.1}
-                    valueLabelDisplay="auto"
-                  />
-                </Grid>
-
-                <Grid item xs={12}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
-                    <Typography>
-                      Expertise: {weaponExpertise} (+{weaponExpertise}% SWD)
-                    </Typography>
-                    <TextField
-                      size="small"
-                      type="number"
-                      value={weaponExpertise}
-                      onChange={(e) => {
-                        const value = parseInt(e.target.value);
-                        if (!isNaN(value) && value >= 0 && value <= 30) {
-                          setWeaponExpertise(value);
-                        } else if (e.target.value === '') {
-                          setWeaponExpertise(0);
-                        }
-                      }}
-                      inputProps={{ 
-                        min: 0, 
-                        max: 30, 
-                        step: 1,
-                        style: { width: '80px' }
-                      }}
-                      sx={{ width: '120px' }}
-                    />
-                  </Box>
-                  <Slider
-                    value={weaponExpertise}
-                    onChange={(e, value) => setWeaponExpertise(value)}
-                    min={0}
-                    max={30}
-                    step={1}
-                    marks={[
-                      { value: 0, label: '0' },
-                      { value: 10, label: '10' },
-                      { value: 20, label: '20' },
-                      { value: 30, label: '30' },
-                    ]}
-                    valueLabelDisplay="auto"
-                  />
-                </Grid>
-              </Grid>
-            </AccordionDetails>
-          </Accordion>
-
-          {/* Specialization Section */}
-          <Accordion defaultExpanded sx={{ mb: 2 }}>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography variant="h6" fontWeight="bold">⭐ Spécialisation</Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <Grid container spacing={3}>
-                <Grid item xs={12}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                    <Typography>
-                      Cette arme est affectée par la spécialisation ?
-                    </Typography>
-                    <ToggleButtonGroup
-                      value={weaponAffectedBySpec}
-                      exclusive
-                      onChange={(e, value) => value !== null && setWeaponAffectedBySpec(value)}
-                      color="primary"
-                    >
-                      <ToggleButton value={true}>Oui</ToggleButton>
-                      <ToggleButton value={false}>Non</ToggleButton>
-                    </ToggleButtonGroup>
-                  </Box>
-                </Grid>
-
-                <Grid item xs={12}>
-                  <Typography gutterBottom>
-                    Palier de spécialisation: {specTier}/3 ({specTier * 5}% bonus)
-                  </Typography>
-                  <Slider
-                    value={specTier}
-                    onChange={(e, value) => setSpecTier(value)}
-                    min={0}
-                    max={3}
-                    step={1}
-                    marks={[
-                      { value: 0, label: '0' },
-                      { value: 1, label: '1 (5%)' },
-                      { value: 2, label: '2 (10%)' },
-                      { value: 3, label: '3 (15%)' },
-                    ]}
-                    valueLabelDisplay="auto"
-                    disabled={!weaponAffectedBySpec}
-                  />
-                </Grid>
-              </Grid>
-            </AccordionDetails>
-          </Accordion>
-
-          {/* Watch Section */}
-          <Accordion defaultExpanded sx={{ mb: 2 }}>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography variant="h6" fontWeight="bold">⌚ Montre (All Weapon Damage)</Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <Grid container spacing={3}>
-                <Grid item xs={12}>
-                  <Typography gutterBottom>
-                    Palier de la montre: {watchTier}/50 ({(watchTier * 0.2).toFixed(1)}% AWD)
-                  </Typography>
-                  <Slider
-                    value={watchTier}
-                    onChange={(e, value) => setWatchTier(value)}
-                    min={0}
-                    max={50}
-                    step={1}
-                    marks={[
-                      { value: 0, label: '0' },
-                      { value: 25, label: '25 (5%)' },
-                      { value: 50, label: '50 (10%)' },
-                    ]}
-                    valueLabelDisplay="auto"
-                  />
-                </Grid>
-              </Grid>
-            </AccordionDetails>
-          </Accordion>
-
-          {/* Seasonal Bonus Section */}
-          <Accordion defaultExpanded sx={{ mb: 2 }}>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography variant="h6" fontWeight="bold">🎯 Bonus de Saison (AWD)</Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <Grid container spacing={3}>
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    label="AWD Bonus de Saison (%)"
-                    type="number"
-                    value={seasonalAWD}
-                    onChange={(e) => setSeasonalAWD(parseFloat(e.target.value) || 0)}
-                    variant="outlined"
-                    helperText="Bonus d'All Weapon Damage de la saison en cours"
-                  />
-                </Grid>
-              </Grid>
-            </AccordionDetails>
-          </Accordion>
-
-          {/* Gear Pieces Section */}
-          <Accordion defaultExpanded sx={{ mb: 2 }}>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography variant="h6" fontWeight="bold">🎽 Équipement (Core Attributes)</Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <Grid container spacing={3}>
-                <Grid item xs={12}>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    Core Attribute AWD de chaque pièce d'équipement (6 max)
-                  </Typography>
-                </Grid>
-                
-                {[1, 2, 3, 4, 5, 6].map((num, index) => (
-                  <Grid item xs={12} sm={6} md={4} key={num}>
-                    <TextField
-                      fullWidth
-                      label={`Pièce ${num} - AWD (%)`}
-                      type="number"
-                      value={gearValues[index]}
-                      onChange={(e) => {
-                        const value = parseFloat(e.target.value) || 0;
-                        gearSetters[index](value);
-                      }}
-                      variant="outlined"
-                      inputProps={{ min: 0, max: 15, step: 0.1 }}
-                    />
-                  </Grid>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              <TextField
+                select
+                label="Weapon Category"
+                value={weapon.category}
+                onChange={(e) => handleWeaponChange("category", e.target.value)}
+                fullWidth
+              >
+                {WEAPON_CATEGORIES.map((cat) => (
+                  <MenuItem key={cat} value={cat}>
+                    {cat}
+                  </MenuItem>
                 ))}
-                
-                <Grid item xs={12}>
-                  <Paper sx={{ p: 2, bgcolor: 'primary.light', color: 'white' }}>
-                    <Typography variant="body2">
-                      Total AWD de l'équipement: <strong>{totalGearAWD.toFixed(1)}%</strong>
-                    </Typography>
-                  </Paper>
-                </Grid>
-              </Grid>
-            </AccordionDetails>
-          </Accordion>
+              </TextField>
 
-          {/* Striker Gear Set Section */}
-          <Accordion defaultExpanded sx={{ mb: 2 }}>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography variant="h6" fontWeight="bold">💥 Striker Gear Set</Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <Grid container spacing={3}>
-                <Grid item xs={12}>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    Le set Striker augmente le TWD de {strikerStackValue}% par stack
-                  </Typography>
-                </Grid>
+              <TextField
+                label="Base Damage"
+                type="number"
+                value={weapon.baseDamage}
+                onChange={(e) =>
+                  handleWeaponChange("baseDamage", e.target.value)
+                }
+                fullWidth
+              />
 
-                <Grid item xs={12} sm={6}>
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="body2" sx={{ mb: 1 }}>
-                      Striker Chest équipé ?
-                    </Typography>
-                    <ToggleButtonGroup
-                      value={hasStrikerChest}
-                      exclusive
-                      onChange={(e, value) => {
-                        if (value !== null) {
-                          setHasStrikerChest(value);
-                          // Reset stacks if exceeding new max
-                          if (!value && strikerStacks > 100) {
-                            setStrikerStacks(100);
-                          }
-                        }
-                      }}
-                      fullWidth
-                      color="primary"
-                    >
-                      <ToggleButton value={true}>Oui (Max 200)</ToggleButton>
-                      <ToggleButton value={false}>Non (Max 100)</ToggleButton>
-                    </ToggleButtonGroup>
-                  </Box>
-                </Grid>
+              <TextField
+                label="RPM"
+                type="number"
+                value={weapon.rpm}
+                onChange={(e) => handleWeaponChange("rpm", e.target.value)}
+                fullWidth
+              />
 
-                <Grid item xs={12} sm={6}>
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="body2" sx={{ mb: 1 }}>
-                      Striker Backpack équipé ?
-                    </Typography>
-                    <ToggleButtonGroup
-                      value={hasStrikerBackpack}
-                      exclusive
-                      onChange={(e, value) => value !== null && setHasStrikerBackpack(value)}
-                      fullWidth
-                      color="primary"
-                    >
-                      <ToggleButton value={true}>Oui (0.9%)</ToggleButton>
-                      <ToggleButton value={false}>Non (0.65%)</ToggleButton>
-                    </ToggleButtonGroup>
-                  </Box>
-                </Grid>
+              {/* MagSize */}
+              <SliderInput
+                label="Magazine Size"
+                value={weapon.magSize}
+                onChange={(val) => handleWeaponChange("magSize", val)}
+                min={0}
+                max={1000}
+                step={1}
+              />
+              {/* Reload Time */}
+              <SliderInput
+                label="Reload Time"
+                value={weapon.reloadTime}
+                onChange={(val) => handleWeaponChange("reloadTime", val)}
+                min={0}
+                max={10}
+                step={0.01}
+                valueFormatter={(val) => `${val.toFixed(2)}s`}
+              />
+              {/* Base HSD */}
+              <SliderInput
+                label="Base HSD"
+                value={weapon.baseHSD}
+                onChange={(val) => handleWeaponChange("baseHSD", val)}
+                min={0}
+                max={150}
+                step={1}
+                valueFormatter={(val) => `${val}%`}
+              />
+              {/* Expertise */}
+              <SliderInput
+                label="Expertise"
+                value={weapon.expertise}
+                onChange={(val) => handleWeaponChange("expertise", val)}
+                min={0}
+                max={30}
+                step={1}
+                valueFormatter={(val) => `${val.toFixed(1)}%`}
+              />
+              {/* Core Attribute 1 */}
+              <SliderInput
+                label="Core Attribute 1"
+                value={weapon.coreAttribute1}
+                onChange={(val) => handleWeaponChange("coreAttribute1", val)}
+                min={0}
+                max={15}
+                step={1}
+                valueFormatter={(val) => `${val.toFixed(1)}%`}
+              />
+              {/* Core Attribute 2 */}
+              {weapon.category !== "Pistol" && (
+                <SliderInput
+                  label={`Core Attribute 2 (${coreAttr2.type})`}
+                  value={weapon.coreAttribute2}
+                  onChange={(val) => handleWeaponChange("coreAttribute2", val)}
+                  min={0}
+                  max={coreAttr2.max}
+                  step={0.1}
+                  valueFormatter={(val) => `${val.toFixed(1)}%`}
+                />
+              )}
+              {/* Attribute */}
+              <TextField
+                select
+                label="Weapon Attribute Type"
+                value={weapon.attribute.type}
+                onChange={(e) =>
+                  handleWeaponChange("attributeType", e.target.value)
+                }
+                fullWidth
+              >
+                {availableAttributes.map((attr) => (
+                  <MenuItem key={attr.type} value={attr.type}>
+                    {attr.type} (max: {attr.max}%)
+                  </MenuItem>
+                ))}
+              </TextField>
+              <SliderInput
+                label={`Attribute Value (${weapon.attribute.type})`}
+                value={weapon.attribute.value}
+                onChange={(val) => handleWeaponChange("attributeValue", val)}
+                min={0}
+                max={
+                  availableAttributes.find(
+                    (a) => a.type === weapon.attribute.type
+                  )?.max || 0
+                }
+                step={0.1}
+                valueFormatter={(val) => `${val.toFixed(1)}%`}
+              />
+            </Box>
+          </Paper>
+        </Grid>
 
-                <Grid item xs={12}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
-                    <Typography>
-                      Stacks Striker: {strikerStacks}/{maxStrikerStacks} ({strikerTWD.toFixed(1)}% TWD)
-                    </Typography>
-                    <TextField
-                      size="small"
-                      type="number"
-                      value={strikerStacks}
-                      onChange={(e) => {
-                        const value = parseInt(e.target.value) || 0;
-                        if (value >= 0 && value <= maxStrikerStacks) {
-                          setStrikerStacks(value);
-                        }
-                      }}
-                      inputProps={{ 
-                        min: 0, 
-                        max: maxStrikerStacks, 
-                        step: 1,
-                        style: { width: '80px' }
-                      }}
-                      sx={{ width: '120px' }}
-                    />
-                  </Box>
-                  <Slider
-                    value={strikerStacks}
-                    onChange={(e, value) => setStrikerStacks(value)}
-                    min={0}
-                    max={maxStrikerStacks}
-                    step={1}
-                    marks={[
-                      { value: 0, label: '0' },
-                      { value: 50, label: '50' },
-                      { value: 100, label: '100' },
-                      ...(hasStrikerChest ? [
-                        { value: 150, label: '150' },
-                        { value: 200, label: '200' }
-                      ] : [])
-                    ]}
-                    valueLabelDisplay="auto"
-                  />
-                </Grid>
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 3, mb: 3 }}>
+            <Typography variant="h5" gutterBottom>
+              Combat Scenario
+            </Typography>
+            <Divider sx={{ mb: 2 }} />
 
-                <Grid item xs={12}>
-                  <Paper sx={{ p: 2, bgcolor: 'warning.light' }}>
-                    <Typography variant="body2" fontWeight="bold" gutterBottom>
-                      📉 Perte de stacks par seconde :
-                    </Typography>
-                    <Typography variant="body2">
-                      • 0-50 stacks: -1 stack/s
-                    </Typography>
-                    <Typography variant="body2">
-                      • 50-100 stacks: -2 stacks/s
-                    </Typography>
-                    {hasStrikerChest && (
-                      <Typography variant="body2">
-                        • 100-200 stacks: -3 stacks/s
-                      </Typography>
-                    )}
-                  </Paper>
-                </Grid>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <TextField
+                select
+                label="Target Type"
+                value={combatScenario.targetType}
+                onChange={(e) =>
+                  setCombatScenario((prev) => ({
+                    ...prev,
+                    targetType: e.target.value,
+                  }))
+                }
+                fullWidth
+              >
+                <MenuItem value="armor">Armor</MenuItem>
+                <MenuItem value="health">Health</MenuItem>
+              </TextField>
 
-                <Grid item xs={12}>
-                  <Paper sx={{ p: 2, bgcolor: 'success.light', color: 'white' }}>
-                    <Typography variant="body2">
-                      <strong>TWD Striker: {strikerTWD.toFixed(1)}%</strong> ({strikerStacks} stacks × {strikerStackValue}%)
-                    </Typography>
-                    <Typography variant="body2">
-                      <strong>TWD Total: {totalTWD.toFixed(1)}%</strong> (Base: {twd}% + Striker: {strikerTWD.toFixed(1)}%)
-                    </Typography>
-                  </Paper>
-                </Grid>
-              </Grid>
-            </AccordionDetails>
-          </Accordion>
+              <TextField
+                select
+                label="Target in Cover"
+                value={combatScenario.targetInCover}
+                onChange={(e) =>
+                  setCombatScenario((prev) => ({
+                    ...prev,
+                    targetInCover: e.target.value === "true",
+                  }))
+                }
+                fullWidth
+              >
+                <MenuItem value="false">No (Out of Cover)</MenuItem>
+                <MenuItem value="true">Yes (In Cover)</MenuItem>
+                {/* <MenuItem value={false}>No (Out of Cover)</MenuItem>
+                <MenuItem value={true}>Yes (In Cover)</MenuItem> */}
+              </TextField>
+            </Box>
+          </Paper>
 
-          {/* Other Stats Section */}
-          <Accordion sx={{ mb: 3 }}>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography variant="h6" fontWeight="bold">📊 Autres Stats</Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <Grid container spacing={3}>
-                <Grid item xs={12} sm={6} md={4}>
-                  <TextField
-                    fullWidth
-                    label="TWD Base (%)"
-                    type="number"
-                    value={twd}
-                    onChange={(e) => setTwd(parseFloat(e.target.value) || 0)}
-                    variant="outlined"
-                    helperText="Total Weapon Damage (hors Striker)"
-                  />
-                </Grid>
-
-                <Grid item xs={12} sm={6} md={4}>
-                  <TextField
-                    fullWidth
-                    label="CHD (%)"
-                    type="number"
-                    value={chd}
-                    onChange={(e) => setChd(parseFloat(e.target.value) || 0)}
-                    variant="outlined"
-                    helperText="Critical Hit Damage"
-                  />
-                </Grid>
-
-                <Grid item xs={12} sm={6} md={4}>
-                  <TextField
-                    fullWidth
-                    label="HSD (%)"
-                    type="number"
-                    value={hsd}
-                    onChange={(e) => setHsd(parseFloat(e.target.value) || 0)}
-                    variant="outlined"
-                    helperText="Headshot Damage"
-                  />
-                </Grid>
-
-                <Grid item xs={12} sm={6} md={4}>
-                  <Box>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                      Type de dégâts
-                    </Typography>
-                    <ToggleButtonGroup
-                      value={damageType}
-                      exclusive
-                      onChange={(e, newValue) => newValue && setDamageType(newValue)}
-                      fullWidth
-                      color="primary"
-                    >
-                      <ToggleButton value="dta">DTA</ToggleButton>
-                      <ToggleButton value="dth">DTH</ToggleButton>
-                    </ToggleButtonGroup>
-                  </Box>
-                </Grid>
-
-                <Grid item xs={12} sm={6} md={4}>
-                  <TextField
-                    fullWidth
-                    label={damageType === 'dta' ? "DTA (%)" : "DTH (%)"}
-                    type="number"
-                    value={damageType === 'dta' ? dta : dth}
-                    onChange={(e) => damageType === 'dta' ? setDta(parseFloat(e.target.value) || 0) : setDth(parseFloat(e.target.value) || 0)}
-                    variant="outlined"
-                    helperText={damageType === 'dta' ? "Damage to Armor" : "Damage to Health"}
-                  />
-                </Grid>
-
-                <Grid item xs={12} sm={6} md={4}>
-                  <TextField
-                    fullWidth
-                    label="DTTOOC (%)"
-                    type="number"
-                    value={dttooc}
-                    onChange={(e) => setDttooc(parseFloat(e.target.value) || 0)}
-                    variant="outlined"
-                    helperText="Damage to Target Out of Cover"
-                  />
-                </Grid>
-
-                <Grid item xs={12} sm={6} md={4}>
-                  <TextField
-                    fullWidth
-                    label="Autres Multiplicateurs (%)"
-                    type="number"
-                    value={other}
-                    onChange={(e) => setOther(parseFloat(e.target.value) || 0)}
-                    variant="outlined"
-                    helperText="Autres modificateurs"
-                  />
-                </Grid>
-              </Grid>
-            </AccordionDetails>
-          </Accordion>
-
-          {/* Summary Card */}
-          <Card sx={{ 
-            background: 'linear-gradient(135deg, #e94560 0%, #c72c48 100%)',
-            color: 'white',
-            mb: 3
-          }}>
+          <Card sx={{ bgcolor: "primary.main", color: "white" }}>
             <CardContent>
-              <Typography variant="body2" sx={{ mb: 1, opacity: 0.9 }}>
-                Dégâts Totaux
+              <Typography variant="h4" gutterBottom>
+                DPS: {stats.dps.toLocaleString()}
               </Typography>
-              <Typography variant="h2" component="div" fontWeight="bold">
-                {result.toFixed(2)}
-              </Typography>
-              <Divider sx={{ my: 2, bgcolor: 'rgba(255,255,255,0.2)' }} />
+              <Divider sx={{ my: 2, bgcolor: "white" }} />
+
               <Grid container spacing={2}>
-                <Grid item xs={12} sm={6} md={3}>
-                  <Typography variant="caption" display="block">AWD Total</Typography>
-                  <Typography variant="h6">{awd.toFixed(1)}%</Typography>
-                  <Typography variant="caption" display="block" sx={{ opacity: 0.8 }}>
-                    Montre: {(watchTier * 0.2).toFixed(1)}%
+                <Grid item xs={6}>
+                  <Typography variant="body2" color="rgba(255,255,255,0.7)">
+                    Body Shot
                   </Typography>
-                  <Typography variant="caption" display="block" sx={{ opacity: 0.8 }}>
-                    Saison: {seasonalAWD.toFixed(1)}%
-                  </Typography>
-                  <Typography variant="caption" display="block" sx={{ opacity: 0.8 }}>
-                    Équipement: {totalGearAWD.toFixed(1)}%
+                  <Typography variant="h6">
+                    {stats.bodyDamage.toLocaleString()}
                   </Typography>
                 </Grid>
-                <Grid item xs={6} sm={3}>
-                  <Typography variant="caption" display="block">SWD Total</Typography>
-                  <Typography variant="h6">{swd.toFixed(1)}%</Typography>
-                  <Typography variant="caption" display="block" sx={{ opacity: 0.8 }}>
-                    Core: {weaponCoreAttribute}%
+
+                <Grid item xs={6}>
+                  <Typography variant="body2" color="rgba(255,255,255,0.7)">
+                    Body Shot (Crit)
                   </Typography>
-                  <Typography variant="caption" display="block" sx={{ opacity: 0.8 }}>
-                    Expertise: {weaponExpertise}%
-                  </Typography>
-                  <Typography variant="caption" display="block" sx={{ opacity: 0.8 }}>
-                    Spec: {weaponAffectedBySpec ? specTier * 5 : 0}%
+                  <Typography variant="h6">
+                    {stats.bodyCritDamage.toLocaleString()}
                   </Typography>
                 </Grid>
-                <Grid item xs={6} sm={3}>
-                  <Typography variant="caption" display="block">TWD Total</Typography>
-                  <Typography variant="h6">{totalTWD.toFixed(1)}%</Typography>
-                  <Typography variant="caption" display="block" sx={{ opacity: 0.8 }}>
-                    Base: {twd}%
+
+                <Grid item xs={6}>
+                  <Typography variant="body2" color="rgba(255,255,255,0.7)">
+                    Headshot
                   </Typography>
-                  <Typography variant="caption" display="block" sx={{ opacity: 0.8 }}>
-                    Striker: {strikerTWD.toFixed(1)}%
+                  <Typography variant="h6">
+                    {stats.headshotDamage.toLocaleString()}
                   </Typography>
                 </Grid>
-                <Grid item xs={6} sm={3}>
-                  <Typography variant="caption" display="block">Multiplicateur Global</Typography>
-                  <Typography variant="h6">×{((1 + (awd + swd) / 100) * (1 + totalTWD / 100)).toFixed(3)}</Typography>
+
+                <Grid item xs={6}>
+                  <Typography variant="body2" color="rgba(255,255,255,0.7)">
+                    Headshot (Crit)
+                  </Typography>
+                  <Typography variant="h6">
+                    {stats.headshotCritDamage.toLocaleString()}
+                  </Typography>
                 </Grid>
               </Grid>
+
+              <Divider sx={{ my: 2, bgcolor: "rgba(255,255,255,0.3)" }} />
+
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                  <Typography variant="body2" color="rgba(255,255,255,0.7)">
+                    Average Damage:
+                  </Typography>
+                  <Typography variant="body2" fontWeight="bold">
+                    {stats.avgDamage.toLocaleString()}
+                  </Typography>
+                </Box>
+
+                <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                  <Typography variant="body2" color="rgba(255,255,255,0.7)">
+                    Effective RPM:
+                  </Typography>
+                  <Typography variant="body2" fontWeight="bold">
+                    {stats.effectiveRPM}
+                  </Typography>
+                </Box>
+
+                <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                  <Typography variant="body2" color="rgba(255,255,255,0.7)">
+                    Effective Mag Size:
+                  </Typography>
+                  <Typography variant="body2" fontWeight="bold">
+                    {stats.effectiveMagSize}
+                  </Typography>
+                </Box>
+
+                <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                  <Typography variant="body2" color="rgba(255,255,255,0.7)">
+                    Reload Time:
+                  </Typography>
+                  <Typography variant="body2" fontWeight="bold">
+                    {stats.effectiveReloadTime}s
+                  </Typography>
+                </Box>
+
+                <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                  <Typography variant="body2" color="rgba(255,255,255,0.7)">
+                    Crit Chance:
+                  </Typography>
+                  <Typography variant="body2" fontWeight="bold">
+                    {stats.critChance}%
+                  </Typography>
+                </Box>
+              </Box>
             </CardContent>
           </Card>
 
-          <Paper variant="outlined" sx={{ p: 2, bgcolor: 'grey.50' }}>
-            <Typography variant="caption" component="div" sx={{ fontFamily: 'monospace', color: 'text.secondary' }}>
-              <strong>Formule :</strong> BASE × (1 + (AWD+SWD)/100) × (1 + TWD/100) × (1 + (CHD+HSD)/100) × (1 + {damageType === 'dta' ? 'DTA' : 'DTH'}/100) × (1 + DTTOOC/100) × (1 + Autres/100)
-            </Typography>
-          </Paper>
-        </Paper>
-      </Container>
-    </Box>
+          <Alert severity="info" sx={{ mt: 2 }}>
+            <strong>Note:</strong> DPS calculation uses average damage based on
+            crit chance (capped at 60%).
+          </Alert>
+        </Grid>
+      </Grid>
+    </Container>
   );
 }
+
+export default App;
