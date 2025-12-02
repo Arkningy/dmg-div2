@@ -1,0 +1,193 @@
+{
+    "message": "Success",
+    "data": [
+        {
+            "_id": "6854b9322e6a7ac4f820d557",
+            "Quality": "A",
+            "Stat": "Disorient Resistance",
+            "Type": "D",
+            "index": 15,
+            "updatedAt": "2025-02-25T05:19:56.388Z",
+            "createdAt": "2025-02-25T05:19:56.388Z",
+            "Max": "10",
+            "id": "9Le6DmzVWNQkqRsQwLyA"
+        },
+        {
+            "_id": "6854b9322e6a7ac4f820d550",
+            "Stat": "Blind/Deaf Resistance",
+            "Max": "10",
+            "updatedAt": "2025-02-25T05:19:55.272Z",
+            "Quality": "A",
+            "Type": "D",
+            "index": 8,
+            "createdAt": "2025-02-25T05:19:55.272Z",
+            "id": "zOft2D18E60ycCMOlI6T"
+        },
+        {
+            "_id": "6854b9322e6a7ac4f820d553",
+            "Type": "D",
+            "createdAt": "2025-02-25T05:19:55.765Z",
+            "Stat": "Shock Resistance",
+            "Quality": "A",
+            "updatedAt": "2025-02-25T05:19:55.765Z",
+            "index": 11,
+            "Max": "10",
+            "id": "xLWgbW4fhXIRk4ekmOAA"
+        },
+        {
+            "_id": "6854b9322e6a7ac4f820d556",
+            "Type": "U",
+            "updatedAt": "2025-02-25T05:19:56.221Z",
+            "Max": "10",
+            "createdAt": "2025-02-25T05:19:56.221Z",
+            "Quality": "A",
+            "Stat": "Skill Duration",
+            "index": 14,
+            "id": "np8yebPpBnuQgPNrOPai"
+        },
+        {
+            "_id": "6854b9322e6a7ac4f820d54a",
+            "Type": "O",
+            "index": 2,
+            "createdAt": "2025-02-25T05:19:54.268Z",
+            "Stat": "Critical Hit Damage",
+            "Quality": "A",
+            "updatedAt": "2025-02-25T05:19:54.268Z",
+            "Max": "12",
+            "id": "loqT1alcnJfpFbVavJ9R"
+        },
+        {
+            "_id": "6854b9322e6a7ac4f820d549",
+            "Stat": "Critical Hit Chance",
+            "createdAt": "2025-02-25T05:19:54.106Z",
+            "Max": "6",
+            "Type": "O",
+            "index": 1,
+            "updatedAt": "2025-02-25T05:19:54.106Z",
+            "Quality": "A",
+            "id": "ZHfB48qgg0EOY1XDMjEu"
+        },
+        {
+            "_id": "6854b9322e6a7ac4f820d54e",
+            "updatedAt": "2025-02-25T05:19:54.974Z",
+            "Stat": "Protection from Elites",
+            "Type": "D",
+            "createdAt": "2025-02-25T05:19:54.974Z",
+            "Max": "13",
+            "index": 6,
+            "Quality": "A",
+            "id": "jZG0ETTaCkMJyYaTObVW"
+        },
+        {
+            "_id": "6854b9322e6a7ac4f820d554",
+            "updatedAt": "2025-02-25T05:19:55.905Z",
+            "Stat": "Repair Skills",
+            "Type": "U",
+            "createdAt": "2025-02-25T05:19:55.905Z",
+            "Max": "20",
+            "index": 12,
+            "Quality": "A",
+            "id": "O6JLvsdRqwxunSrHq2Hc"
+        },
+        {
+            "_id": "6854b9322e6a7ac4f820d555",
+            "updatedAt": "2025-02-25T05:19:56.063Z",
+            "Type": "U",
+            "Quality": "A",
+            "index": 13,
+            "Stat": "Skill Haste",
+            "Max": "12",
+            "createdAt": "2025-02-25T05:19:56.063Z",
+            "id": "L4q2w1BQrvRa6t5IcfcR"
+        },
+        {
+            "_id": "6854b9322e6a7ac4f820d54b",
+            "Type": "O",
+            "updatedAt": "2025-02-25T05:19:54.413Z",
+            "index": 3,
+            "Quality": "A",
+            "Max": "10",
+            "Stat": "Headshot Damage",
+            "createdAt": "2025-02-25T05:19:54.413Z",
+            "id": "knwOLI5ns6kvkWDAp9f5"
+        },
+        {
+            "_id": "6854b9322e6a7ac4f820d54d",
+            "index": 5,
+            "createdAt": "2025-02-25T05:19:54.731Z",
+            "Type": "D",
+            "Stat": "Incoming Repairs",
+            "Max": "20",
+            "Quality": "A",
+            "updatedAt": "2025-02-25T05:19:54.731Z",
+            "id": "n84fBFKI6gJgkNq24dIV"
+        },
+        {
+            "_id": "6854b9322e6a7ac4f820d54f",
+            "createdAt": "2025-02-25T05:19:55.127Z",
+            "Max": "10",
+            "index": 7,
+            "Type": "D",
+            "updatedAt": "2025-02-25T05:19:55.127Z",
+            "Quality": "A",
+            "Stat": "Bleed Resistance",
+            "id": "6jEcgiICVpYKVdlVCPEg"
+        },
+        {
+            "_id": "6854b9322e6a7ac4f820d551",
+            "index": 9,
+            "Stat": "Burn Resistance",
+            "updatedAt": "2025-02-25T05:19:55.454Z",
+            "Max": "10",
+            "createdAt": "2025-02-25T05:19:55.454Z",
+            "Type": "D",
+            "Quality": "A",
+            "id": "TirN8KtJnn5e8WDtSVSn"
+        },
+        {
+            "_id": "6854b9322e6a7ac4f820d552",
+            "Stat": "Disrupt Resistance",
+            "createdAt": "2025-02-25T05:19:55.614Z",
+            "Quality": "A",
+            "Max": "10",
+            "updatedAt": "2025-02-25T05:19:55.614Z",
+            "index": 10,
+            "Type": "D",
+            "id": "5JPrnDhkarR7uA9wKBHu"
+        },
+        {
+            "_id": "6854b9322e6a7ac4f820d54c",
+            "Stat": "Armor on Kill",
+            "Quality": "A",
+            "index": 4,
+            "Max": "18935",
+            "Type": "D",
+            "createdAt": "2025-02-25T05:19:54.565Z",
+            "updatedAt": "2025-02-25T05:19:54.565Z",
+            "id": "DExjOtlWAzWLcJIqE124"
+        },
+        {
+            "_id": "6854b9322e6a7ac4f820d558",
+            "index": 16,
+            "Max": "10",
+            "createdAt": "2025-02-25T05:19:56.544Z",
+            "Quality": "A",
+            "Stat": "Ensnare Resistance",
+            "Type": "D",
+            "updatedAt": "2025-02-25T05:19:56.544Z",
+            "id": "MG115A7wUWDkRAo0na20"
+        },
+        {
+            "_id": "6854b9322e6a7ac4f820d559",
+            "Quality": "A",
+            "updatedAt": "2025-02-25T05:19:56.707Z",
+            "createdAt": "2025-02-25T05:19:56.707Z",
+            "Stat": "Pulse Resistance",
+            "Type": "D",
+            "index": 17,
+            "Max": "10",
+            "id": "bGROf83Cf5qvknhXMBqm"
+        }
+    ],
+    "status": 200
+}
