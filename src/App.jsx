@@ -11,12 +11,12 @@ import {
   Card,
   CardContent,
   Alert,
-  Slider,
   Chip,
 } from "@mui/material";
 import weaponsData from "./weapon.json";
 import weaponModsData from "./weaponMods.json";
 import { SliderInput } from "./Slider";
+import { ModSelect } from "./ModSelect";
 
 // Constants
 const WEAPON_CATEGORIES = [
@@ -443,7 +443,7 @@ function App() {
       </Typography>
 
       <Grid container spacing={3}>
-        {/* Weapon Selection */}
+        {/* #region Weapon Selection */}
         <Grid item xs={12}>
           <Paper sx={{ p: 3 }}>
             <Typography variant="h5" gutterBottom>
@@ -468,8 +468,9 @@ function App() {
             </TextField>
           </Paper>
         </Grid>
+        {/* #endregion Weapon Selection */}
 
-        {/* Weapon Stats */}
+        {/* #region Weapon Stats */}
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 3 }}>
             <Typography variant="h5" gutterBottom>
@@ -602,8 +603,9 @@ function App() {
             </Box>
           </Paper>
         </Grid>
+        {/* #endregion Weapon Stats */}
 
-        {/* Weapon Mods & Combat Scenario & Results */}
+        {/* #region Weapon Mods & Combat Scenario & Results */}
         <Grid item xs={12} md={6}>
           {/* Weapon Mods */}
           <Paper sx={{ p: 3, mb: 3 }}>
@@ -619,113 +621,41 @@ function App() {
             ) : (
               <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
                 {/* Magazine */}
-                <Box>
-                  <TextField
-                    select
-                    label={`Magazine (${availableMods.magazine.length} available)`}
-                    value={
-                      weaponMods.magazine
-                        ? availableMods.magazine.indexOf(weaponMods.magazine)
-                        : ""
-                    }
-                    onChange={(e) =>
-                      handleModChange("magazine", e.target.value)
-                    }
-                    fullWidth
-                    disabled={availableMods.magazine.length === 0}
-                  >
-                    <MenuItem value="">
-                      <em>None</em>
-                    </MenuItem>
-                    {availableMods.magazine.map((mod, idx) => (
-                      <MenuItem key={idx} value={idx}>
-                        {mod.Name}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                  {renderModBonus(weaponMods.magazine)}
-                </Box>
-
+                <ModSelect
+                  label="Magazine"
+                  slot="magazine"
+                  availableMods={availableMods}
+                  selectedMod={weaponMods.magazine}
+                  onChange={handleModChange}
+                  renderModBonus={renderModBonus}
+                />
                 {/* Muzzle */}
-                <Box>
-                  <TextField
-                    select
-                    label={`Muzzle (${availableMods.muzzle.length} available)`}
-                    value={
-                      weaponMods.muzzle
-                        ? availableMods.muzzle.indexOf(weaponMods.muzzle)
-                        : ""
-                    }
-                    onChange={(e) => handleModChange("muzzle", e.target.value)}
-                    fullWidth
-                    disabled={availableMods.muzzle.length === 0}
-                  >
-                    <MenuItem value="">
-                      <em>None</em>
-                    </MenuItem>
-                    {availableMods.muzzle.map((mod, idx) => (
-                      <MenuItem key={idx} value={idx}>
-                        {mod.Name}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                  {renderModBonus(weaponMods.muzzle)}
-                </Box>
+                <ModSelect
+                  label="Muzzle"
+                  slot="muzzle"
+                  availableMods={availableMods}
+                  selectedMod={weaponMods.muzzle}
+                  onChange={handleModChange}
+                  renderModBonus={renderModBonus}
+                />
                 {/* Optic */}
-                <Box>
-                  <TextField
-                    select
-                    label={`Optic (${availableMods.optic.length} available)`}
-                    value={
-                      weaponMods.optic
-                        ? availableMods.optic.indexOf(weaponMods.optic)
-                        : ""
-                    }
-                    onChange={(e) => handleModChange("optic", e.target.value)}
-                    fullWidth
-                    disabled={availableMods.optic.length === 0}
-                  >
-                    <MenuItem value="">
-                      <em>None</em>
-                    </MenuItem>
-                    {availableMods.optic.map((mod, idx) => (
-                      <MenuItem key={idx} value={idx}>
-                        {mod.Name}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                  {renderModBonus(weaponMods.optic)}
-                </Box>
-
+                <ModSelect
+                  label="Optic"
+                  slot="optic"
+                  availableMods={availableMods}
+                  selectedMod={weaponMods.optic}
+                  onChange={handleModChange}
+                  renderModBonus={renderModBonus}
+                />
                 {/* Under Barrel */}
-                <Box>
-                  <TextField
-                    select
-                    label={`Under Barrel (${availableMods.underBarrel.length} available)`}
-                    value={
-                      weaponMods.underBarrel
-                        ? availableMods.underBarrel.indexOf(
-                            weaponMods.underBarrel
-                          )
-                        : ""
-                    }
-                    onChange={(e) =>
-                      handleModChange("underBarrel", e.target.value)
-                    }
-                    fullWidth
-                    disabled={availableMods.underBarrel.length === 0}
-                  >
-                    <MenuItem value="">
-                      <em>None</em>
-                    </MenuItem>
-                    {availableMods.underBarrel.map((mod, idx) => (
-                      <MenuItem key={idx} value={idx}>
-                        {mod.Name}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                  {renderModBonus(weaponMods.underBarrel)}
-                </Box>
+                <ModSelect
+                  label="Under Barrel"
+                  slot="underBarrel"
+                  availableMods={availableMods}
+                  selectedMod={weaponMods.underBarrel}
+                  onChange={handleModChange}
+                  renderModBonus={renderModBonus}
+                />
               </Box>
             )}
           </Paper>
@@ -875,6 +805,7 @@ function App() {
             final stats.
           </Alert>
         </Grid>
+        {/* #endregion Weapon Mods & Combat Scenario & Results */}
       </Grid>
     </Container>
   );
