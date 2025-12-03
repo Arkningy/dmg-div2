@@ -15,6 +15,9 @@ import {
 } from "@mui/material";
 import weaponsData from "./weapon.json";
 import weaponModsData from "./weaponMods.json";
+import maskData from "./mask.json";
+import gearAttributesData from "./gearAttributes.json";
+import gearModsData from "./gearMods.json";
 import { SliderInput } from "./Slider";
 import { ModSelect } from "./ModSelect";
 
@@ -60,6 +63,16 @@ const AVAILABLE_ATTRIBUTES = [
   { type: "CHD", max: 10 },
 ];
 
+const CORE_TYPES = {
+  "Weapon Damage": { type: "WD", max: 15 },
+  Armor: { type: "ARM", max: 170000 },
+  "Skill Tier": { type: "ST", max: 1 },
+};
+
+const getAttributeByName = (statName) => {
+  return gearAttributesData.data.find((attr) => attr.Stat === statName);
+};
+
 function App() {
   const [selectedWeaponName, setSelectedWeaponName] = useState("");
 
@@ -87,6 +100,14 @@ function App() {
   const [combatScenario, setCombatScenario] = useState({
     targetType: "armor",
     targetInCover: false,
+  });
+
+  const [selectedMask, setSelectedMask] = useState(null);
+  const [maskConfig, setMaskConfig] = useState({
+    core: { type: "Weapon Damage", value: 15 },
+    attribute1: { type: "Critical Hit Chance", value: 6 },
+    attribute2: { type: "Critical Hit Damage", value: 12 },
+    mod: null,
   });
 
   // Get current weapon data from JSON
@@ -204,6 +225,72 @@ function App() {
     }));
   };
 
+  const handleMaskSelect = (maskName) => {
+    const mask = maskData.data.find((m) => m["Item Name"] === maskName);
+    if (!mask) return;
+
+    setSelectedMask(mask);
+
+    // Configuration par défaut basée sur le type de masque
+    if (mask.Quality === "Exotic") {
+      // Les exotiques ont des attributs fixes
+      const attr1 = getAttributeByName(mask["Attribute 1"]);
+      const attr2 = getAttributeByName(mask["Attribute 2"]);
+
+      setMaskConfig({
+        core: {
+          type: mask.Core,
+          value: CORE_TYPES[mask.Core]?.max || 0,
+        },
+        attribute1: {
+          type: mask["Attribute 1"],
+          value: parseFloat(attr1?.Max) || 0,
+          locked: true,
+        },
+        attribute2: {
+          type: mask["Attribute 2"],
+          value: parseFloat(attr2?.Max) || 0,
+          locked: true,
+        },
+        mod: null,
+      });
+    } else if (mask.Quality === "Named") {
+      // Les Named ont un attribut fixe
+      const attr1 = getAttributeByName(mask["Attribute 1"]);
+
+      setMaskConfig({
+        core: { type: mask.Core, value: CORE_TYPES[mask.Core]?.max || 0 },
+        attribute1: {
+          type: mask["Attribute 1"],
+          value: parseFloat(attr1?.Max) || 0,
+          locked: true,
+        },
+        attribute2: { type: "Critical Hit Damage", value: 12, locked: false },
+        mod: null,
+      });
+    } else {
+      // High End - tout est modifiable
+      setMaskConfig({
+        core: {
+          type: mask.Core || "Weapon Damage",
+          value: CORE_TYPES[mask.Core]?.max || 15,
+        },
+        attribute1: { type: "Critical Hit Chance", value: 6, locked: false },
+        attribute2: { type: "Critical Hit Damage", value: 12, locked: false },
+        mod: null,
+      });
+    }
+  };
+
+  const handleMaskConfigChange = (field, subfield, value) => {
+    setMaskConfig((prev) => ({
+      ...prev,
+      [field]: {
+        ...prev[field],
+        [subfield]: value,
+      },
+    }));
+  };
   // Calculate total mod bonuses
   const modBonuses = useMemo(() => {
     const bonuses = {
@@ -294,14 +381,54 @@ function App() {
   const calculateBulletDamage = (hitType = "body") => {
     const coreAttr2Type = CORE_ATTRIBUTE_2_BY_CATEGORY[weapon.category].type;
 
-    let awd = BASE_STATS.awd + weapon.expertise;
-    let swd = weapon.coreAttribute1;
+    // Apply mask bonuses
+    let maskCHC = 0;
+    let maskCHD = 0;
+    let maskHSD = 0;
+    let maskWD = 0;
+    if (selectedMask && maskConfig) {
+      // Core bonus (Weapon Damage)
+      if (maskConfig.core.type === "Weapon Damage") {
+        maskWD = maskConfig.core.value;
+      }
 
-    let chd = BASE_STATS.chd + modBonuses.chd;
+      // Attribute 1
+      if (maskConfig.attribute1.type === "Critical Hit Chance")
+        maskCHC += maskConfig.attribute1.value;
+      if (maskConfig.attribute1.type === "Critical Hit Damage")
+        maskCHD += maskConfig.attribute1.value;
+      if (maskConfig.attribute1.type === "Headshot Damage")
+        maskHSD += maskConfig.attribute1.value;
+      if (maskConfig.attribute1.type === "Weapon Damage")
+        maskWD += maskConfig.attribute1.value;
+
+      // Attribute 2
+      if (maskConfig.attribute2?.type === "Critical Hit Chance")
+        maskCHC += maskConfig.attribute2.value;
+      if (maskConfig.attribute2?.type === "Critical Hit Damage")
+        maskCHD += maskConfig.attribute2.value;
+      if (maskConfig.attribute2?.type === "Headshot Damage")
+        maskHSD += maskConfig.attribute2.value;
+      if (maskConfig.attribute2?.type === "Weapon Damage")
+        maskWD += maskConfig.attribute2.value;
+
+      // Mod
+      if (maskConfig.mod) {
+        if (maskConfig.mod.Stat === "Critical Hit Chance")
+          maskCHC += parseFloat(maskConfig.mod.Max);
+        if (maskConfig.mod.Stat === "Critical Hit Damage")
+          maskCHD += parseFloat(maskConfig.mod.Max);
+        if (maskConfig.mod.Stat === "Headshot Damage")
+          maskHSD += parseFloat(maskConfig.mod.Max);
+      }
+      console.log(maskCHC);
+    }
+
+    let chd = BASE_STATS.chd + modBonuses.chd + maskCHD;
     if (coreAttr2Type === "CHD") chd += weapon.coreAttribute2;
     if (weapon.attribute.type === "CHD") chd += weapon.attribute.value;
 
-    let hsd = BASE_STATS.hsd + weapon.baseHSD + modBonuses.hsd;
+    let hsd = BASE_STATS.hsd + weapon.baseHSD + modBonuses.hsd + maskHSD;
     if (coreAttr2Type === "HSD") hsd += weapon.coreAttribute2;
     if (weapon.attribute.type === "HSD") hsd += weapon.attribute.value;
 
@@ -320,6 +447,9 @@ function App() {
       if (weapon.attribute.type === "DTTOOC") dttooc += weapon.attribute.value;
     }
 
+    // Add mask Weapon Damage to overall damage calculation
+    let awd = BASE_STATS.awd + weapon.expertise + maskWD;
+    let swd = weapon.coreAttribute1;
     let damage = weapon.baseDamage * (1 + (awd + swd) / 100);
 
     if (hitType === "bodyCrit") {
@@ -337,7 +467,17 @@ function App() {
   };
 
   const calculateDPS = () => {
-    let chc = BASE_STATS.chc + modBonuses.chc;
+    let maskCHC = 0;
+    if (selectedMask && maskConfig) {
+      if (maskConfig.attribute1.type === "Critical Hit Chance")
+        maskCHC += maskConfig.attribute1.value;
+      if (maskConfig.attribute2?.type === "Critical Hit Chance")
+        maskCHC += maskConfig.attribute2.value;
+      if (maskConfig.mod?.Stat === "Critical Hit Chance")
+        maskCHC += parseFloat(maskConfig.mod.Max);
+    }
+
+    let chc = BASE_STATS.chc + modBonuses.chc + maskCHC;
     if (CORE_ATTRIBUTE_2_BY_CATEGORY[weapon.category].type === "CHC") {
       chc += weapon.coreAttribute2;
     }
@@ -443,6 +583,198 @@ function App() {
       </Typography>
 
       <Grid container spacing={3}>
+        {/* Mask Selection */}
+        <Grid item xs={12}>
+          <Paper sx={{ p: 3 }}>
+            <Typography variant="h5" gutterBottom>
+              Select Mask
+            </Typography>
+            <Divider sx={{ mb: 2 }} />
+            <TextField
+              select
+              label="Mask"
+              value={selectedMask?.["Item Name"] || ""}
+              onChange={(e) => handleMaskSelect(e.target.value)}
+              fullWidth
+            >
+              <MenuItem value="">
+                <em>No mask</em>
+              </MenuItem>
+              {maskData.data
+                .sort((a, b) => a["Item Name"].localeCompare(b["Item Name"]))
+                .map((mask) => (
+                  <MenuItem key={mask.id} value={mask["Item Name"]}>
+                    {mask["Item Name"]} ({mask.Brand}) - {mask.Quality}
+                  </MenuItem>
+                ))}
+            </TextField>
+
+            {selectedMask && (
+              <Box
+                sx={{ mt: 3, display: "flex", flexDirection: "column", gap: 2 }}
+              >
+                <Alert severity="info">
+                  <strong>{selectedMask.Quality}</strong> - {selectedMask.Brand}
+                  {selectedMask.Talent && ` | Talent: ${selectedMask.Talent}`}
+                </Alert>
+
+                {/* Core Attribute */}
+                <SliderInput
+                  label={`Core: ${maskConfig.core.type}`}
+                  value={maskConfig.core.value}
+                  onChange={(val) =>
+                    handleMaskConfigChange("core", "value", val)
+                  }
+                  min={0}
+                  max={CORE_TYPES[maskConfig.core.type]?.max || 15}
+                  step={maskConfig.core.type === "Skill Tier" ? 1 : 0.1}
+                  valueFormatter={(val) =>
+                    maskConfig.core.type === "Skill Tier"
+                      ? val.toString()
+                      : `${val.toFixed(1)}%`
+                  }
+                />
+
+                {/* Attribute 1 */}
+                <Box>
+                  <TextField
+                    select
+                    label="Attribute 1"
+                    value={maskConfig.attribute1.type}
+                    onChange={(e) => {
+                      const attr = getAttributeByName(e.target.value);
+                      handleMaskConfigChange(
+                        "attribute1",
+                        "type",
+                        e.target.value
+                      );
+                      handleMaskConfigChange(
+                        "attribute1",
+                        "value",
+                        parseFloat(attr?.Max) || 0
+                      );
+                    }}
+                    fullWidth
+                    disabled={maskConfig.attribute1.locked}
+                  >
+                    {gearAttributesData.data
+                      .filter((attr) => attr.Quality === "A")
+                      .map((attr) => (
+                        <MenuItem key={attr.id} value={attr.Stat}>
+                          {attr.Stat} (max: {attr.Max})
+                        </MenuItem>
+                      ))}
+                  </TextField>
+                  {maskConfig.attribute1.locked && (
+                    <Chip
+                      label="Locked"
+                      size="small"
+                      color="warning"
+                      sx={{ mt: 1 }}
+                    />
+                  )}
+                  <SliderInput
+                    label={`Value`}
+                    value={maskConfig.attribute1.value}
+                    onChange={(val) =>
+                      handleMaskConfigChange("attribute1", "value", val)
+                    }
+                    min={0}
+                    max={
+                      parseFloat(
+                        getAttributeByName(maskConfig.attribute1.type)?.Max
+                      ) || 10
+                    }
+                    step={0.1}
+                    valueFormatter={(val) => `${val.toFixed(1)}%`}
+                    disabled={maskConfig.attribute1.locked}
+                  />
+                </Box>
+
+                {/* Attribute 2 */}
+                {maskConfig.attribute2 && (
+                  <Box>
+                    <TextField
+                      select
+                      label="Attribute 2"
+                      value={maskConfig.attribute2.type}
+                      onChange={(e) => {
+                        const attr = getAttributeByName(e.target.value);
+                        handleMaskConfigChange(
+                          "attribute2",
+                          "type",
+                          e.target.value
+                        );
+                        handleMaskConfigChange(
+                          "attribute2",
+                          "value",
+                          parseFloat(attr?.Max) || 0
+                        );
+                      }}
+                      fullWidth
+                      disabled={maskConfig.attribute2.locked}
+                    >
+                      {gearAttributesData.data
+                        .filter((attr) => attr.Quality === "A")
+                        .map((attr) => (
+                          <MenuItem key={attr.id} value={attr.Stat}>
+                            {attr.Stat} (max: {attr.Max})
+                          </MenuItem>
+                        ))}
+                    </TextField>
+                    {maskConfig.attribute2.locked && (
+                      <Chip
+                        label="Locked"
+                        size="small"
+                        color="warning"
+                        sx={{ mt: 1 }}
+                      />
+                    )}
+                    <SliderInput
+                      label={`Value`}
+                      value={maskConfig.attribute2.value}
+                      onChange={(val) =>
+                        handleMaskConfigChange("attribute2", "value", val)
+                      }
+                      min={0}
+                      max={
+                        parseFloat(
+                          getAttributeByName(maskConfig.attribute2.type)?.Max
+                        ) || 10
+                      }
+                      step={0.1}
+                      valueFormatter={(val) => `${val.toFixed(1)}%`}
+                      disabled={maskConfig.attribute2.locked}
+                    />
+                  </Box>
+                )}
+
+                {/* Gear Mod */}
+                <TextField
+                  select
+                  label="Gear Mod"
+                  value={maskConfig.mod?.id || ""}
+                  onChange={(e) => {
+                    const mod = gearModsData.data.find(
+                      (m) => m.id === e.target.value
+                    );
+                    setMaskConfig((prev) => ({ ...prev, mod }));
+                  }}
+                  fullWidth
+                >
+                  <MenuItem value="">
+                    <em>No mod</em>
+                  </MenuItem>
+                  {gearModsData.data.map((mod) => (
+                    <MenuItem key={mod.id} value={mod.id}>
+                      {mod.Stat} (+{mod.Max}%)
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Box>
+            )}
+          </Paper>
+        </Grid>
         {/* #region Weapon Selection */}
         <Grid item xs={12}>
           <Paper sx={{ p: 3 }}>
